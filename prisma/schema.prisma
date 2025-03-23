@@ -1,0 +1,314 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                  String               @id @default(uuid())
+  email               String               @unique
+  password            String
+  name                String
+  role                String               @default("student") // student, admin, chef, busDriver
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  status              Boolean              @default(false)
+  cafeteriaMenu       CafeteriaMenu[]
+  cafeteriaOrders     CafeteriaOrder[]
+  busNotifications    BusNotification[]    @relation("UserToBusNotification")
+  classSchedules      ClassSchedule[]
+  eventRSVPs          EventRSVP[]
+  clubMemberships     ClubMembership[]
+  chefAssignment      ChefAssignment? // Chef assigned to a restaurant
+  busDriverAssignment BusDriverAssignment?
+
+  messagesSent     Message[] @relation("MessageSender") // Messages sent by the user
+  messagesReceived Message[] @relation("MessageReceiver") // Messages received by the user
+
+  mailsSent         Mail[]              @relation("MailFromUser")
+  mailsReceived     Mail[]              @relation("MailToUser")
+  garbageCollection GarbageCollection[]
+}
+
+model GarbageCollection {
+  id            String @id @default(uuid())
+  location      String
+  description   String
+  garbageType   String
+  garbageWeight String
+  garbagePic    String
+  userId        String
+  longitude     String
+  latitude      String
+  user          User   @relation(fields: [userId], references: [id])
+}
+
+// AI-Powered Chatbot for FAQs
+model ChatbotInteraction {
+  id          String   @id @default(uuid())
+  description String
+  createdAt   DateTime @default(now())
+}
+
+// Secure Student-Faculty Messaging Platform
+model Message {
+  id         String   @id @default(uuid())
+  senderId   String // ID of the user sending the message
+  receiverId String // ID of the user receiving the message
+  content    String // Message content
+  read       Boolean  @default(false) // Whether the message has been read
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  sender   User @relation("MessageSender", fields: [senderId], references: [id])
+  receiver User @relation("MessageReceiver", fields: [receiverId], references: [id])
+}
+
+// model Student {
+//   id   String  @id @default(uuid())
+//   paid Boolean
+//   user_id  String        @unique
+//   cafe_id  String        @unique
+//   club_id  String        @unique
+//   route_id String        @unique
+//   user     User          @relation(fields: [user_id], references: [id])
+//   cafemenu CafeteriaMenu @relation(fields: [cafe_id], references: [id])
+// }
+
+// Cafe Start
+model CafeteriaMenu {
+  id          String           @id @default(uuid())
+  meal_url    String
+  user_id     String
+  mealName    String
+  description String
+  price       Float
+  quantity    Int
+  mealType    String
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  orders      CafeteriaOrder[]
+  user        User             @relation(fields: [user_id], references: [id])
+  // student     Student?
+}
+
+model CafeteriaOrder {
+  id        String        @id @default(uuid())
+  userId    String
+  menuId    String
+  quantity  Int
+  paid      Boolean       @default(false)
+  status    Boolean       @default(false)
+  preOrder  Boolean       @default(false)
+  createdAt DateTime      @default(now())
+  user      User          @relation(fields: [userId], references: [id])
+  menu      CafeteriaMenu @relation(fields: [menuId], references: [id])
+}
+
+model ChefAssignment {
+  id           String     @id @default(uuid())
+  userId       String     @unique
+  restaurantId String
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  user         User       @relation(fields: [userId], references: [id])
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+}
+
+model BusRoute {
+  id                   String               @id @default(uuid())
+  busNum               String
+  startPoint           String
+  endPoint             String
+  schedule             String
+  currentLatitude      Float                @default(23.8069)
+  currentLongitude     Float                @default(90.3686)
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  bus_url              String
+  notifications        BusNotification[]
+  busDriverAssignments BusDriverAssignment?
+}
+
+model BusNotification {
+  id        String   @id @default(uuid())
+  routeId   String // Changed to String (UUID)
+  message   String
+  type      String // delay, schedule change, detour
+  userId    String? // Changed to String (UUID) and made optional
+  createdAt DateTime @default(now())
+
+  route BusRoute @relation(fields: [routeId], references: [id])
+  user  User?    @relation("UserToBusNotification", fields: [userId], references: [id]) // Named relation
+}
+
+model ClassSchedule {
+  id        String   @id @default(uuid())
+  userId    String // Changed to String (UUID)
+  className String
+  professor String
+  time      DateTime
+  location  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  user User @relation(fields: [userId], references: [id])
+}
+
+model FacultyContact {
+  id         String   @id @default(uuid())
+  name       String
+  email      String   @unique
+  phone      String
+  department String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Event {
+  id          String      @id @default(uuid())
+  name        String
+  url         String
+  description String
+  date        DateTime
+  location    String
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  clubId      String
+  club        Club        @relation(fields: [clubId], references: [id])
+  rsvps       EventRSVP[]
+}
+
+model EventRSVP {
+  id        String   @id @default(uuid())
+  userId    String // Changed to String (UUID)
+  eventId   String // Changed to String (UUID)
+  status    String
+  flag      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id])
+  event Event @relation(fields: [eventId], references: [id])
+}
+
+model CampusLocation {
+  id          String   @id @default(uuid())
+  name        String
+  description String
+  latitude    Float
+  longitude   Float
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  arMaps      ARMap[] // Renamed for consistency
+}
+
+model ARMap {
+  id         String   @id @default(uuid())
+  locationId String // Changed to String (UUID)
+  arData     String // AR data or path to AR file
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  location CampusLocation @relation(fields: [locationId], references: [id])
+}
+
+model BusDriverAssignment {
+  id        String   @id @default(uuid())
+  userId    String   @unique // Changed to String (UUID)
+  routeId   String   @unique // Changed to String (UUID)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  // Relationships
+  user      User     @relation(fields: [userId], references: [id])
+  route     BusRoute @relation(fields: [routeId], references: [id])
+}
+
+model Restaurant {
+  id        String   @id @default(uuid())
+  name      String
+  address   String
+  cafe_url  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  chefs ChefAssignment[] // Chefs assigned to this restaurant
+}
+
+model Club {
+  id          String           @id @default(uuid())
+  name        String
+  description String
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  club_url    String
+  memberships ClubMembership[]
+  events      Event[]
+}
+
+model ClubMembership {
+  id        String   @id @default(uuid())
+  userId    String
+  clubId    String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+  club Club @relation(fields: [clubId], references: [id])
+
+  @@unique([userId, clubId]) // Prevent duplicate memberships
+}
+
+model Routine {
+  id        String     @id @default(uuid())
+  userId    String     @unique // Add @unique here
+  schedule  Json
+  todolist  Todolist[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model Todolist {
+  id        String   @id @default(uuid())
+  routineId String
+  routine   Routine  @relation(fields: [routineId], references: [userId])
+  task      String
+  completed Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SafetyAlert {
+  id             String           @id @default(uuid())
+  message        String
+  location       String?
+  emergencyLevel EmergencyLevel   @default(MEDIUM)
+  type           AnnouncementType
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+}
+
+enum EmergencyLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum AnnouncementType {
+  EMERGENCY
+  ANNOUNCEMENT
+}
+
+model Mail {
+  id         String   @id @default(uuid())
+  toUserId   String
+  fromUserId String
+  subject    String
+  message    String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  to         User     @relation(name: "MailToUser", fields: [toUserId], references: [id])
+  from       User     @relation(name: "MailFromUser", fields: [fromUserId], references: [id])
+}
